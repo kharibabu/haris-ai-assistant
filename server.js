@@ -4,26 +4,40 @@ import dotenv from "dotenv";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
+import session  from "express-session";
 
 
 dotenv.config();
 const app = express();
 app.use(express.json());
 app.use(cors());
+app.use(
+    session({
+      secret: "haris-ai-assistant-secret", // change later
+      resave: false,
+      saveUninitialized: true,
+      cookie: {
+        httpOnly: true
+      }
+    })
+);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Serve frontend files
 app.use(express.static(path.join(__dirname, "public")));
 
-let conversationHistory = []
-
 app.post("/api/chat", async (req, res) => {
   try {
     const userMessage = req.body.message;
 
-    // Add user message to memory
-    conversationHistory.push({
+    // Initialize session memory if missing
+    if (!req.session.conversationHistory) {
+      req.session.conversationHistory = [];
+    }
+
+    // Add user message
+    req.session.conversationHistory.push({
       role: "user",
       content: [
         {
@@ -47,20 +61,18 @@ app.post("/api/chat", async (req, res) => {
             content: [
               {
                 type: "input_text",
-                text: "You are a useful assistant and answer queries as usual. Just when you get 'hari' as a promnpt just say 'good health matters'"
+                text: process.env.SYSTEM_PROMPT_TEXT
               }
             ]
           },
-          ...conversationHistory
+          ...req.session.conversationHistory
         ]
       })
     });
 
     const data = await response.json();
-    console.log(JSON.stringify(data, null, 2));
 
-
-    // Extract assistant reply safely
+    // Extract assistant reply
     let reply = "No response";
     if (data.output_text) {
       reply = data.output_text;
@@ -77,8 +89,8 @@ app.post("/api/chat", async (req, res) => {
       }
     }
 
-    // Add assistant reply to memory
-    conversationHistory.push({
+    // Save assistant reply
+    req.session.conversationHistory.push({
       role: "assistant",
       content: [
         {
@@ -95,10 +107,12 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
+
 app.post("/api/clear", (req, res) => {
-  conversationHistory = [];
+  req.session.conversationHistory = [];
   res.json({ status: "cleared" });
 });
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));

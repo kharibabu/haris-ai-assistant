@@ -2,6 +2,7 @@ const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const chatLog = document.getElementById("chat-log");
 
+
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
 
@@ -40,4 +41,15 @@ function appendMessage(sender, text) {
   chatLog.appendChild(msg);
   chatLog.scrollTop = chatLog.scrollHeight;
   return msg;
+}
+
+const clearButton = document.getElementById("clear-chat");
+clearButton.addEventListener("click", clearChat);
+
+async function clearChat() {
+  chatLog.innerHTML = "";
+
+  await fetch("/api/clear", {
+    method: "POST"
+  });
 }
